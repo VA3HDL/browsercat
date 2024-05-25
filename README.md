@@ -9,4 +9,4 @@ Dependencies (must be running in the background)
 - Hamlib - rotctld for the rotator, one instance for each rotator
 - ham-apps-proxy.pl
 
-![browsercat](https://github.com/VA3HDL/hamdashboard/blob/main/browsercat.png?raw=true)
+![browsercat](https://github.com/VA3HDL/browsercat/blob/main/browsercat.png?raw=true)
