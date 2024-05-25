@@ -1,1 +1,8 @@
-# browsercat
+# browsercat and rotator
+
+Radios and Rotator controller via web pages on your browser
+
+Dependencies (must be running in the background)
+- Hamlib - rigctld for the radios, one instance for each radio
+- Hamlib - rotctld for the rotator, one instance for each rotator
+- ham-apps-proxy.pl
