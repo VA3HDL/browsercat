@@ -1,6 +1,6 @@
 # browsercat and rotator
 
-Radios and Rotator controller via web pages on your browser
+Radios and Rotator controller via single page applications (SPA) on your prefered web browser
 
 [YouTube video](https://www.youtube.com/watch?v=w8TOOhBp3bo)
 
@@ -11,6 +11,10 @@ Radios and Rotator controller via web pages on your browser
 
 [Hamlib](https://hamlib.github.io/) official website
 
+# BrowserCat
+
 ![browsercat](https://github.com/VA3HDL/browsercat/blob/main/examples/browsercat.png?raw=true)
+
+# Rotator
 
 ![rotator](https://github.com/VA3HDL/browsercat/blob/main/examples/rotator.png?raw=true)

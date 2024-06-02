@@ -29,6 +29,15 @@
         width: 100%;
         height: 100%;
       }
+      .spawnMarker {
+        background-color: rgba(0, 0, 0, 0.1);
+        border: 0px;
+        position: relative;
+        display: inline-block;
+        left: -0.25em;
+        top: -0.5em;
+      }
+
       .azi-muth {
         font-family: "Syne Mono", sans-serif;
         font-size: 2vw;
@@ -39,13 +48,48 @@
         z-index: 9999;
         pointer-events: none;
       }
+
+      .locator {
+        clear: both;
+        z-index: 9999;
+        display: block;
+        background-color: rgba(0, 0, 0, 0.3);
+        color: #fff;
+        padding: 1vh;
+        border: 0px none;
+        overflow: hidden;
+        position: absolute;
+        width: auto;
+        top: 0;
+        left: 43%;
+        font-family: "Roboto Condensed", sans-serif;
+      }
     </style>
   </head>
   <body>
     <div id="map"></div>
     <div class="azi-muth" id="azimuth">Bearing unreacheable</div>
+    <div class="locator" id="cat">
+      <label for="filter" style="padding-left: 10px">Locator: </label>
+      <input
+        role="presentation"
+        autocomplete="off"
+        type="text"
+        id="jump"
+        placeholder="locator"
+        size="10"
+        onkeydown="search(this)"
+      />
+      <button
+        id="jmpBtn"
+        onclick='fLoc(document.getElementById("jump").value);'
+        style="margin: 0px; padding: 1px; width: 30px"
+      >
+        Go
+      </button>
+    </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
+    <script src="maidenhead.js"></script>
     <script>
       // Force your Latitude and Longitude with the values below
       //
@@ -84,7 +128,9 @@
           });
       }
 
-      getRotId = setInterval(() => get_rot(), 1500);
+      if (typeof port !== "undefined") {
+        getRotId = setInterval(() => get_rot(), 1500);
+      }
 
       // Initialize the map
       var map = L.map("map").setView([0, 0], 5);
@@ -93,6 +139,58 @@
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
       }).addTo(map);
+
+      const maidenhead2 = L.maidenhead({ precision: 2 });
+      const maidenhead4 = L.maidenhead({ precision: 4 });
+      const maidenhead6 = L.maidenhead({ precision: 6 });
+      const maidenhead8 = L.maidenhead({ precision: 8 });
+      maidenhead2.addTo(map);
+
+      map.on("zoomstart", function (e) {
+        console.log("ZOOMSTART", e);
+        console.log(map.getZoom());
+        if (typeof rectLoc !== "undefined") {
+          map.removeLayer(rectLoc);
+          console.log("Removing old rectangle");
+        }
+        maidenhead2.remove();
+        maidenhead4.remove();
+        maidenhead6.remove();
+        maidenhead8.remove();
+      });
+
+      map.on("zoomend", function (e) {
+        console.log("ZOOMEND", e);
+        console.log(map.getZoom());
+        zoom = map.getZoom();
+        switch (true) {
+          case zoom <= 2:
+            console.log("No grid");
+            break;
+          case zoom <= 5:
+            maidenhead2.addTo(map);
+            console.log("Precision 2");
+            break;
+          case zoom <= 9:
+            maidenhead4.addTo(map);
+            console.log("Precision 4");
+            break;
+          case zoom <= 13:
+            maidenhead6.addTo(map);
+            console.log("Precision 6");
+            break;
+          case zoom <= 19:
+            maidenhead8.addTo(map);
+            console.log("Precision 8");
+            break;
+          default:
+            console.log("This should not happen");
+        }
+        if (typeof rectLoc !== "undefined") {
+          rectLoc.addTo(map);
+          console.log("Adding rectangle");
+        }
+      });
 
       // Define user's location and marker
       var userLocation;
@@ -151,6 +249,7 @@
         if (circleMarker) {
           map.removeLayer(circleMarker);
         }
+
         // Draw a line from user location to the clicked point
         line = L.polyline([userLocation, clickLocation], {
           color: "blue",
@@ -167,12 +266,18 @@
           .bindPopup(
             "Bearing: " +
               bearing.toFixed(2) +
-              " degrees<br>Distance: " +
+              "&deg; <br>Distance: " +
               distance.toFixed(2) +
               " km<br>Latitude: " +
               rtrim(clickLocation.lat, 8) +
               "<br>Longitude: " +
-              rtrim(clickLocation.lng, 9)
+              rtrim(clickLocation.lng, 9) +
+              "<br>Locator: " +
+              L.Maidenhead.latLngToIndex(
+                clickLocation.lat,
+                clickLocation.lng,
+                8
+              )
           )
           .openPopup();
 
@@ -215,6 +320,69 @@
         var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         var distance = R * c;
         return distance;
+      }
+
+      // Variable to store the rectangle
+      var rectLoc;
+
+      function fLoc(locator) {
+        console.log(locator);
+
+        switch (locator.length) {
+          case 2:
+            zoomLevel = 5;
+            break;
+          case 4:
+            zoomLevel = 9;
+            break;
+          case 6:
+            zoomLevel = 13;
+            break;
+          case 8:
+            zoomLevel = 17;
+            break;
+          default:
+            alert("Invalid locator!");
+            return;
+        }
+
+        console.log(L.Maidenhead.indexToBBox(locator));
+
+        // Define the top-left and bottom-right coordinates (example coordinates)
+        var topLeft = [
+          L.Maidenhead.indexToBBox(locator)[0],
+          L.Maidenhead.indexToBBox(locator)[1],
+        ]; // Example coordinate
+        var bottomRight = [
+          L.Maidenhead.indexToBBox(locator)[2],
+          L.Maidenhead.indexToBBox(locator)[3],
+        ]; // Example coordinate
+
+        // Calculate the center of the rectangle
+        var centerLat = (topLeft[0] + bottomRight[0]) / 2;
+        var centerLng = (topLeft[1] + bottomRight[1]) / 2;
+        var center = [centerLat, centerLng];
+
+        // Remove the previous rectangle if it exists
+        if (typeof rectLoc !== "undefined") {
+          map.removeLayer(rectLoc);
+          console.log("Removing old rectangle");
+        }
+
+        // Optionally, add a rectangle to the map
+        rectLoc = L.rectangle([topLeft, bottomRight], {
+          color: "#ff7800",
+          weight: 1,
+        }).addTo(map);
+
+        // Set the map view to the center of the rectangle
+        map.setView(center,zoomLevel); // Adjust the zoom level as needed
+      }
+
+      function search(ele) {
+        if (event.key === "Enter") {
+          fLoc(ele.value);
+        }
       }
     </script>
   </body>
