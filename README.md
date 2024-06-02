@@ -11,4 +11,6 @@ Radios and Rotator controller via web pages on your browser
 
 [Hamlib](https://hamlib.github.io/) official website
 
-![browsercat](https://github.com/VA3HDL/browsercat/blob/main/browsercat.png?raw=true)
+![browsercat](https://github.com/VA3HDL/browsercat/blob/main/examples/browsercat.png?raw=true)
+
+![rotator](https://github.com/VA3HDL/browsercat/blob/main/examples/rotator.png?raw=true)
