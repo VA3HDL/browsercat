@@ -70,7 +70,7 @@
     <div id="map"></div>
     <div class="azi-muth" id="azimuth">Bearing unreacheable</div>
     <div class="locator" id="cat">
-      <label for="filter" style="padding-left: 10px">Locator: </label>
+      <label for="jump" style="padding-left: 10px">Locator: </label>
       <input
         role="presentation"
         autocomplete="off"
@@ -87,6 +87,13 @@
       >
         Go
       </button>
+      <button
+        id="rstBtn"
+        onclick="reset();"
+        style="margin: 0px; padding: 1px; width: 50px"
+      >
+        Reset
+      </button>
     </div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="maidenhead.js"></script>
@@ -100,6 +107,7 @@
       //
       var hdg = 0;
 
+      // Set the rotator heading/bearing/azimuth
       function rot(heading) {
         url = "http://localhost:8073/rotctl/P?" + heading + " 0&__port=" + port;
         // Make the POST request using the Fetch API
@@ -114,6 +122,7 @@
           });
       }
 
+      // Get the rotator heading/bearing/azimuth and show on the map
       function get_rot() {
         url = "http://localhost:8073/rotctl/p?&__port=" + port;
         // Make the POST request using the Fetch API
@@ -124,10 +133,12 @@
             az = data.azimuth.split(".");
             document.getElementById("azimuth").innerHTML =
               "Bearing " + az[0] + "&deg;";
-            userMarker.bindPopup("Az " + az[0] + "&deg;");
+            popup.setContent("Az " + az[0] + "&deg;");
+            // console.log("Popup Id: ", popup._leaflet_id);
           });
       }
 
+      // Read the rotator heading/bearing/azimuth every 1.5 seconds
       if (typeof port !== "undefined") {
         getRotId = setInterval(() => get_rot(), 1500);
       }
@@ -140,18 +151,27 @@
         maxZoom: 19,
       }).addTo(map);
 
+      // Add the locator squares
       const maidenhead2 = L.maidenhead({ precision: 2 });
       const maidenhead4 = L.maidenhead({ precision: 4 });
       const maidenhead6 = L.maidenhead({ precision: 6 });
       const maidenhead8 = L.maidenhead({ precision: 8 });
       maidenhead2.addTo(map);
 
+      // Before zooming
       map.on("zoomstart", function (e) {
         console.log("ZOOMSTART", e);
         console.log(map.getZoom());
-        if (typeof rectLoc !== "undefined") {
-          map.removeLayer(rectLoc);
-          console.log("Removing old rectangle");
+        // Remove the previous line if it exists
+        if (line) {
+          line.remove();
+        }
+        if (circleMarker) {
+          circleMarker.remove();
+        }
+        if (rectLoc) {
+          rectLoc.remove();
+          console.log("1.Removing locator Id: ", rectLoc._leaflet_id);
         }
         maidenhead2.remove();
         maidenhead4.remove();
@@ -159,6 +179,7 @@
         maidenhead8.remove();
       });
 
+      // After zooming
       map.on("zoomend", function (e) {
         console.log("ZOOMEND", e);
         console.log(map.getZoom());
@@ -171,7 +192,7 @@
             maidenhead2.addTo(map);
             console.log("Precision 2");
             break;
-          case zoom <= 9:
+          case zoom <= 10:
             maidenhead4.addTo(map);
             console.log("Precision 4");
             break;
@@ -186,41 +207,79 @@
           default:
             console.log("This should not happen");
         }
-        if (typeof rectLoc !== "undefined") {
+        // Restore layers
+        if (userMarker) {
+          userMarker.openPopup();
+        }
+        if (line) {
+          line.addTo(map);
+        }
+        if (circleMarker) {
+          circleMarker.addTo(map);
+          circleMarker.openPopup();
+        }
+        if (rectLoc) {
           rectLoc.addTo(map);
-          console.log("Adding rectangle");
+          console.log("1.Adding Locator Id: ", rectLoc._leaflet_id);
         }
       });
 
-      // Define user's location and marker
+      // Define user's location and marker and popup
       var userLocation;
       var userMarker = L.marker([0, 0]).addTo(map);
-      if (typeof myQTH !== "undefined") {
-        userLocation = myQTH;
-        map.setView(userLocation, 5);
-        userMarker
-          .setLatLng(userLocation)
-          .bindPopup("You are here")
-          .openPopup();
-        console.log("Forced location: ", myQTH);
-      } else {
-        // Get the user's location and initial zoom level Range is 1 to 13 - Ideal is 5
-        map.locate({ setView: true, maxZoom: 5 });
-        // Handle location found
-        map.on("locationfound", function (e) {
-          userLocation = e.latlng;
-          userMarker
-            .setLatLng(userLocation)
-            .bindPopup("You are here")
-            .openPopup();
-          console.log("Detected location: ", e.latlng);
-        });
+      var popup = L.popup();
+      // Reset the map and center to user location
+      function reset() {
+        popup.options.autoPan = false;
+        popup.options.keepInView = false;
+        if (typeof myQTH !== "undefined") {
+          userLocation = myQTH;
+          userMarker.setLatLng(userLocation);
+          map.setView(userLocation, 5);
+          console.log("Forced location: ", myQTH);
+        } else {
+          // Get the user's location and initial zoom level Range is 1 to 13 - Ideal is 5
+          map.locate({ setView: true, maxZoom: 5 });
+          // Handle location found
+          map.on("locationfound", function (e) {
+            userLocation = e.latlng;
+            userMarker.setLatLng(userLocation);
+            console.log("Detected location: ", e.latlng);
+          });
+        }
+        // complete the initial popup
+        popup.setContent("You are here");
+        userMarker.bindPopup(popup).openPopup();
+
+        // clean up map layers if used
+        if (line) {
+          line.remove();
+          line = null;
+        }
+        if (circleMarker) {
+          circleMarker.remove();
+          circleMarker = null;
+        }
+        if (rectLoc) {
+          rectLoc.remove();
+          console.log("2.Removing locator (reset) Id: ", rectLoc._leaflet_id);
+          rectLoc = null;
+        }
+        // re-center the map to user location
+        if (userLocation) {
+          map.setView(userLocation);
+        }
       }
+
+      // Initialize the map for the first time
+      reset();
 
       // Initialize the line and arrow marker
       var line;
       var circleMarker;
-
+      var cMpopUp = L.popup();
+      cMpopUp.options.autoPan = false;
+      cMpopUp.options.keepInView = false;
       // Handle click event on the map
       map.on("click", function (e) {
         if (!userLocation) {
@@ -244,10 +303,10 @@
 
         // Remove the previous line if it exists
         if (line) {
-          map.removeLayer(line);
+          line.remove();
         }
         if (circleMarker) {
-          map.removeLayer(circleMarker);
+          circleMarker.remove();
         }
 
         // Draw a line from user location to the clicked point
@@ -259,27 +318,25 @@
         circleMarker = L.circleMarker(clickLocation, {
           radius: 8,
           color: "red",
+          autoPan: false,
+          keepInView: false,
         }).addTo(map);
 
         // Display bearing and distance information
-        circleMarker
-          .bindPopup(
-            "Bearing: " +
-              bearing.toFixed(2) +
-              "&deg; <br>Distance: " +
-              distance.toFixed(2) +
-              " km<br>Latitude: " +
-              rtrim(clickLocation.lat, 8) +
-              "<br>Longitude: " +
-              rtrim(clickLocation.lng, 9) +
-              "<br>Locator: " +
-              L.Maidenhead.latLngToIndex(
-                clickLocation.lat,
-                clickLocation.lng,
-                8
-              )
-          )
-          .openPopup();
+        cMpopUp.setContent(
+          "Bearing: " +
+            bearing.toFixed(2) +
+            "&deg; <br>Distance: " +
+            distance.toFixed(2) +
+            " km<br>Latitude: " +
+            rtrim(clickLocation.lat, 8) +
+            "<br>Longitude: " +
+            rtrim(clickLocation.lng, 9) +
+            "<br>Locator: " +
+            L.Maidenhead.latLngToIndex(clickLocation.lat, clickLocation.lng, 8)
+        );
+
+        circleMarker.bindPopup(cMpopUp).openPopup();
 
         hdg = bearing.toFixed(2);
         circleMarker.addEventListener("click", _markerOnClick);
@@ -325,6 +382,7 @@
       // Variable to store the rectangle
       var rectLoc;
 
+      // Locator finder
       function fLoc(locator) {
         console.log(locator);
 
@@ -346,7 +404,7 @@
             return;
         }
 
-        console.log(L.Maidenhead.indexToBBox(locator));
+        // console.log(L.Maidenhead.indexToBBox(locator));
 
         // Define the top-left and bottom-right coordinates (example coordinates)
         var topLeft = [
@@ -364,9 +422,10 @@
         var center = [centerLat, centerLng];
 
         // Remove the previous rectangle if it exists
-        if (typeof rectLoc !== "undefined") {
-          map.removeLayer(rectLoc);
-          console.log("Removing old rectangle");
+        if (rectLoc) {
+          rectLoc.remove();
+          console.log(locator, " 3.Removing locator Id: ", rectLoc._leaflet_id);
+          rectLoc = null;
         }
 
         // Optionally, add a rectangle to the map
@@ -374,9 +433,11 @@
           color: "#ff7800",
           weight: 1,
         }).addTo(map);
+        console.log(locator, " New Locator Id: ", rectLoc._leaflet_id);
 
         // Set the map view to the center of the rectangle
-        map.setView(center,zoomLevel); // Adjust the zoom level as needed
+        // Adjust the zoom level as needed
+        map.setView(center, zoomLevel);
       }
 
       function search(ele) {
