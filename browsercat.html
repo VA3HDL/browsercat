@@ -158,6 +158,14 @@ db   8D    88       88    88booo. 88.     db   8D
         font-size: 11px;
       }
 
+      .post-Button {
+        margin: 0px;
+        padding: 0.025vw;
+        width: auto;
+        font-family: "Victor Mono", sans-serif;
+        font-size: 0.6vw;
+      }
+
       .clear-both {
         clear: both;
       }
@@ -210,6 +218,19 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
 
 -->
   <script>
+    // Function to retrieve the value of a specific parameter on URL
+    function getParm(paramName) {
+      // Step 1: Get the current URL
+      const currentUrl = window.location.href;
+      // Step 2: Create a URL object
+      const urlObj = new URL(currentUrl);
+      // Step 3: Retrieve the search parameters
+      const params = urlObj.searchParams;
+      // console.log(`${paramName}:`, params.get(paramName));
+      // Step 4: Extract and return the parameter value
+      return params.get(paramName);
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
       const clockFace = document.querySelector(".clock-face");
       const buttonCount = 24; // Number of buttons
@@ -243,14 +264,18 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
     });
 
     // default Hamlib port for 1st Radio
-    var port = "4531";
+    if (getParm("rig")) {
+      var rigPort = getParm("rig");
+    } else {
+      var rigPort = "4531";
+    }
     //
     var hdg = 0;
 
     function SetPort() {
-      port = document.getElementById("port").value;
+      rigPort = document.getElementById("port").value;
       document.getElementById("CATport").innerText =
-        "Hamlib CAT Port in use: " + port;
+        "Hamlib CAT Port in use: " + rigPort;
     }
 
     function HamProxyVersion() {
@@ -276,11 +301,11 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
         freqMHz[1] = "0";
       }
       // Format the text
-      return freqMHz[0].padStart(3, "\xa0") + "." + freqMHz[1].padEnd(3, "0");
+      return freqMHz[0].padStart(3, "\xa0") + "." + freqMHz[1].padEnd(5, "0");
     }
 
     function get_vfo() {
-      url = "http://localhost:8073/rigctl/f?&__port=" + port;
+      url = "http://localhost:8073/rigctl/f?&__port=" + rigPort;
       // Make the POST request using the Fetch API
       // {"frequency":"0.53","mode":"AM","width":"15000"}
       fetch(url)
@@ -306,7 +331,8 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
         .then((data) => {
           data = JSON.parse(data);
           az = data.azimuth.split(".");
-          document.getElementById("azimuth").innerHTML = "Bearing " + az[0] + "&deg;";
+          document.getElementById("azimuth").innerHTML =
+            "Bearing " + az[0] + "&deg;";
           hdg = +az[0];
           setNeedleDirection(hdg);
         });
@@ -324,7 +350,7 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
       // Define the URL where you want to send the POST request
 
       freqHz = parseFloat(freq) * 1000000;
-      url = "http://localhost:8073/rigctl/F?" + freqHz + "&__port=" + port;
+      url = "http://localhost:8073/rigctl/F?" + freqHz + "&__port=" + rigPort;
       // Make the POST request using the Fetch API
       fetch(url, { mode: "no-cors" })
         .then((result) => {
@@ -338,7 +364,8 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
 
       // Delay the mode set 500ms
       setTimeout(function () {
-        url = "http://localhost:8073/rigctl/M?" + modo + " -1&__port=" + port;
+        url =
+          "http://localhost:8073/rigctl/M?" + modo + " -1&__port=" + rigPort;
         // Make the POST request using the Fetch API
         fetch(url, { mode: "no-cors" })
           .then((result) => {
@@ -354,8 +381,9 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
 
     function rot(heading) {
       // Define the URL where you want to send the POST request
-      const port = "4535";
-      url = "http://localhost:8073/rotctl/P?" + heading + " 0&__port=" + port;
+      const rotPort = "4535";
+      url =
+        "http://localhost:8073/rotctl/P?" + heading + " 0&__port=" + rotPort;
       // Make the POST request using the Fetch API
       fetch(url, { mode: "no-cors" })
         .then((result) => {
@@ -374,8 +402,23 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
       }
     }
 
+    // Function to set the selected option in a dropdown
+    function setSelectedDropdownValue(dropdownId, paramValue) {
+      const dropdown = document.getElementById(dropdownId);
+      if (!dropdown) return;
+
+      // Iterate over the options and set the selected property
+      for (let i = 0; i < dropdown.options.length; i++) {
+        if (dropdown.options[i].value === paramValue) {
+          dropdown.selectedIndex = i;
+          break;
+        }
+      }
+    }
+
     window.onload = function () {
       HamProxyVersion();
+      setSelectedDropdownValue("port", getParm("rig"));
       get_rot();
       get_vfo();
     };
@@ -569,7 +612,9 @@ db   8D Y8b  d8 88 `88.   .88.   88         88    db   8D
               preMode = cell;
               break;
             case 2:
-              td.innerHTML = `<button id='postButton' onclick='qsy("${cell}", "${preMode}");' style="margin:0px;padding:1px;width:60px;">${fmtMHz(cell)}</button>`;
+              td.innerHTML = `<button class='post-Button' id='postButton' onclick='qsy("${cell}", "${preMode}");'>${fmtMHz(
+                cell
+              )}</button>`;
               preFreq = cell;
               break;
             case 3:
@@ -720,7 +765,7 @@ Y8888P'  `Y88P'  Y8888D'    YP
         <div class="vfo" id="vfo">VFO</div>
         <div class="clear-both" style="padding: 10px">
           <select id="port" name="port" onChange="SetPort()">
-            <option value="“blank”" selected>Select radio</option>
+            <option value="“blank”">Select radio</option>
             <!-- Add or remove Hamlib ports and radios below-->
             <option value="4530">SDR++</option>
             <option value="4531">Dummy</option>
